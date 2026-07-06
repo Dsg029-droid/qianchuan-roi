@@ -229,6 +229,7 @@ body {
       <div class="input-group"><div class="label-row"><label>📦 成交GMV</label><span class="hint">计划带来的总销售额</span></div><div class="input-wrap"><span class="prefix">¥</span><input type="number" id="gmv" value="10500" min="0" step="100"><span class="suffix">元</span></div></div>
       <div class="input-group"><div class="label-row"><label>↩️ 退款率</label><span class="hint">含发货后退款 + 仅退款</span></div><div class="input-wrap"><input type="number" id="refundRate" value="28" min="0" max="100" step="0.5"><span class="suffix">%</span></div></div>
       <div class="input-group"><div class="label-row"><label>📊 毛利率</label><span class="hint">(售价-成本)/售价</span></div><div class="input-wrap"><input type="number" id="marginRate" value="45" min="0" max="100" step="0.5"><span class="suffix">%</span></div></div>
+      <div class="input-group"><div class="label-row"><label>🔻 平台扣点</label><span class="hint">抖音技术服务费/佣金比例</span></div><div class="input-wrap"><input type="number" id="platformFee" value="5" min="0" max="100" step="0.1"><span class="suffix">%</span></div></div>
     </div>
   </div>
 
@@ -274,6 +275,7 @@ body {
             <th class="sortable" onclick="sortPlans('gmv')">GMV <span class="sort-arrow">⇅</span></th>
             <th>退款率</th>
             <th>毛利率</th>
+            <th>平台扣点</th>
             <th>支付ROI</th>
             <th>结算ROI</th>
             <th>净利润</th>
@@ -558,7 +560,7 @@ function isKeyUsed(code) {
 // ═══════════════════════════════════════════
 //  TAB 1: 单计划计算
 // ═══════════════════════════════════════════
-const spendInp = $('spend'), gmvInp = $('gmv'), refundInp = $('refundRate'), marginInp = $('marginRate');
+const spendInp = $('spend'), gmvInp = $('gmv'), refundInp = $('refundRate'), marginInp = $('marginRate'), platformFeeInp = $('platformFee');
 const cardPayRoi = $('cardPayRoi'), cardSettleRoi = $('cardSettleRoi'), cardProfit = $('cardProfit'), cardBreakeven = $('cardBreakeven');
 const gaugeFill = $('gaugeFill'), gaugeMarker = $('gaugeMarker'), gaugeLabel = $('gaugeLabel');
 const breakevenLabel = $('breakevenLabel'), currentRoiLabel = $('currentRoiLabel'), insightBox = $('insightBox');
@@ -570,17 +572,21 @@ function calcSingle() {
   const gmv = parseFloat(gmvInp.value) || 0;
   const refund = (parseFloat(refundInp.value) || 0) / 100;
   const margin = (parseFloat(marginInp.value) || 0) / 100;
+  const platformFee = (parseFloat(platformFeeInp?.value) || 0) / 100;
 
   if (spend <= 0 || gmv <= 0) { clearSingleResults(); return; }
 
   const payRoi = gmv / spend;
   const settleGmv = gmv * (1 - refund);
   const settleRoi = settleGmv / spend;
+  const platformCost = settleGmv * platformFee;
   const grossProfit = settleGmv * margin;
-  const netProfit = grossProfit - spend;
-  const breakevenRoi = (margin > 0 && refund < 1) ? 1 / (margin * (1 - refund)) : Infinity;
+  const netProfit = grossProfit - spend - platformCost;
+  const breakevenRoi = (margin > 0 && refund < 1 && (margin * (1 - refund)) > (platformFee * (1 - refund)))
+    ? 1 / ((margin * (1 - refund)) - (platformFee * (1 - refund)))
+    : Infinity;
 
-  currentCalc = { spend, gmv, refund, margin, payRoi, settleRoi, netProfit, breakevenRoi, date: new Date().toISOString() };
+  currentCalc = { spend, gmv, refund, margin, platformFee, payRoi, settleRoi, netProfit, breakevenRoi, date: new Date().toISOString() };
 
   updateCard(cardPayRoi, '支付ROI', payRoi.toFixed(2), 'neutral');
   updateCard(cardSettleRoi, '结算ROI（扣退款）', settleRoi.toFixed(2), 'neutral');
@@ -650,7 +656,7 @@ function clearSingleResults() {
 }
 
 function resetSingle() {
-  spendInp.value = 0; gmvInp.value = 0; refundInp.value = 0; marginInp.value = 0;
+  spendInp.value = 0; gmvInp.value = 0; refundInp.value = 0; marginInp.value = 0; platformFeeInp.value = 5;
   document.querySelectorAll('#panel-single .preset-btn').forEach(b => b.classList.remove('active'));
   document.querySelector('#panel-single .preset-btn[data-preset="custom"]').classList.add('active');
   clearSingleResults();
@@ -658,20 +664,20 @@ function resetSingle() {
 
 // presets (tab 1)
 const presets = {
-  daily:  { spend: 3000, gmv: 10500, refund: 28, margin: 45 },
-  cold:   { spend: 500,  gmv: 1200,  refund: 35, margin: 40 },
-  promo:  { spend: 20000,gmv: 82000, refund: 32, margin: 35 },
-  custom: { spend: 0,    gmv: 0,     refund: 0,  margin: 0 },
+  daily:  { spend: 3000, gmv: 10500, refund: 28, margin: 45, platformFee: 5 },
+  cold:   { spend: 500,  gmv: 1200,  refund: 35, margin: 40, platformFee: 5 },
+  promo:  { spend: 20000,gmv: 82000, refund: 32, margin: 35, platformFee: 5 },
+  custom: { spend: 0,    gmv: 0,     refund: 0,  margin: 0,  platformFee: 0 },
 };
 document.querySelectorAll('#panel-single .preset-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('#panel-single .preset-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const p = presets[btn.dataset.preset];
-    if (p) { spendInp.value = p.spend; gmvInp.value = p.gmv; refundInp.value = p.refund; marginInp.value = p.margin; calcSingle(); }
+    if (p) { spendInp.value = p.spend; gmvInp.value = p.gmv; refundInp.value = p.refund; marginInp.value = p.margin; platformFeeInp.value = p.platformFee; calcSingle(); }
   });
 });
-[spendInp, gmvInp, refundInp, marginInp].forEach(el => el.addEventListener('input', calcSingle));
+[spendInp, gmvInp, refundInp, marginInp, platformFeeInp].forEach(el => el.addEventListener('input', calcSingle));
 
 // ═══════════════════════════════════════════
 //  HISTORY SAVE (from tab 1)
@@ -685,6 +691,7 @@ function saveHistory() {
     gmv: currentCalc.gmv,
     refundRate: parseFloat(refundInp.value) || 0,
     marginRate: parseFloat(marginInp.value) || 0,
+    platformFee: parseFloat(platformFeeInp?.value) || 0,
     payRoi: currentCalc.payRoi,
     settleRoi: currentCalc.settleRoi,
     netProfit: currentCalc.netProfit,
@@ -716,7 +723,7 @@ function addPlan(name) {
   if (!isPro) { showToast('请先激活 Pro', true); showLicenseModal(); return; }
   const plans = getPlans();
   if (plans.length >= 10) { showToast('最多10条计划', true); return; }
-  plans.push({ id: Date.now(), name: name || ('计划' + (plans.length + 1)), spend: 0, gmv: 0, refundRate: 28, marginRate: 45 });
+  plans.push({ id: Date.now(), name: name || ('计划' + (plans.length + 1)), spend: 0, gmv: 0, refundRate: 28, marginRate: 45, platformFee: 5 });
   savePlans(plans);
   renderPlans();
 }
@@ -749,12 +756,16 @@ function calcPlanRow(p) {
   const spend = p.spend || 0, gmv = p.gmv || 0;
   const refund = (p.refundRate || 0) / 100;
   const margin = (p.marginRate || 0) / 100;
+  const platformFee = (p.platformFee || 0) / 100;
   if (spend <= 0 || gmv <= 0) return { payRoi: 0, settleRoi: 0, netProfit: 0, breakevenRoi: Infinity };
   const payRoi = gmv / spend;
   const settleGmv = gmv * (1 - refund);
   const settleRoi = settleGmv / spend;
-  const netProfit = settleGmv * margin - spend;
-  const breakevenRoi = (margin > 0 && refund < 1) ? 1 / (margin * (1 - refund)) : Infinity;
+  const platformCost = settleGmv * platformFee;
+  const netProfit = settleGmv * margin - spend - platformCost;
+  const breakevenRoi = (margin > 0 && refund < 1 && (margin * (1 - refund)) > (platformFee * (1 - refund)))
+    ? 1 / ((margin * (1 - refund)) - (platformFee * (1 - refund)))
+    : Infinity;
   return { payRoi, settleRoi, netProfit, breakevenRoi };
 }
 
@@ -791,6 +802,7 @@ function renderPlans() {
       <td><input type="number" value="${p.gmv||0}" onchange="updatePlan(${p.id},'gmv',this.value)" step="100"></td>
       <td><input type="number" value="${p.refundRate}" onchange="updatePlan(${p.id},'refundRate',this.value)" step="0.5" style="min-width:55px;">%</td>
       <td><input type="number" value="${p.marginRate}" onchange="updatePlan(${p.id},'marginRate',this.value)" step="0.5" style="min-width:55px;">%</td>
+      <td><input type="number" value="${p.platformFee||5}" onchange="updatePlan(${p.id},'platformFee',this.value)" step="0.1" style="min-width:50px;">%</td>
       <td style="color:${p.payRoi>=p.breakevenRoi?'var(--green)':'var(--text)'};font-weight:600;">${p.payRoi.toFixed(2)}</td>
       <td style="color:${p.netProfit>=0?'var(--green)':'var(--red)'};font-weight:600;">${p.settleRoi.toFixed(2)}</td>
       <td style="color:${p.netProfit>=0?'var(--green)':'var(--red)'};font-weight:700;">${fmtMoney(p.netProfit)}</td>
@@ -807,7 +819,7 @@ function renderPlans() {
     <td>汇总</td>
     <td>¥${fmtNum(totalSpend)}</td>
     <td>¥${fmtNum(totalGmv)}</td>
-    <td></td><td></td>
+    <td></td><td></td><td></td>
     <td>${totalRoi.toFixed(2)}</td>
     <td></td>
     <td style="color:${totalProfit>=0?'var(--green)':'var(--red)'};">${fmtMoney(totalProfit)}</td>
@@ -957,8 +969,8 @@ function drawHistoryChart(data) {
 function exportCSV() {
   const records = getHistory();
   if (records.length === 0) { showToast('暂无数据可导出', true); return; }
-  const headers = ['日期','消耗','GMV','退款率(%)','毛利率(%)','支付ROI','结算ROI','净利润'];
-  const rows = records.map(r => [r.date, r.spend, r.gmv, r.refundRate, r.marginRate, r.payRoi.toFixed(2), r.settleRoi.toFixed(2), r.netProfit.toFixed(2)]);
+  const headers = ['日期','消耗','GMV','退款率(%)','毛利率(%)','平台扣点(%)','支付ROI','结算ROI','净利润'];
+  const rows = records.map(r => [r.date, r.spend, r.gmv, r.refundRate, r.marginRate, r.platformFee||0, r.payRoi.toFixed(2), r.settleRoi.toFixed(2), r.netProfit.toFixed(2)]);
   const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
