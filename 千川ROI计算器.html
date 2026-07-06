@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>千川投放ROI计算器 Pro</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --card: #14141f;
+  --card-hover: #1a1a2a;
+  --border: #1e1e30;
+  --text: #e2e2ed;
+  --text-secondary: #8888a0;
+  --green: #10b981;
+  --green-bg: rgba(16,185,129,0.10);
+  --red: #ef4444;
+  --red-bg: rgba(239,68,68,0.10);
+  --yellow: #f59e0b;
+  --yellow-bg: rgba(245,158,11,0.10);
+  --blue: #3b82f6;
+  --blue-bg: rgba(59,130,246,0.12);
+  --purple: #a855f7;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --transition: 0.2s ease;
+  --tab-height: 72px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Microsoft YaHei",sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; padding: 20px 16px calc(var(--tab-height) + 24px);
+  -webkit-font-smoothing: antialiased;
+  display: flex; justify-content: center;
+}
+.container { width: 100%; max-width: 520px; }
+.panel { display: none; flex-direction: column; gap: 18px; }
+.panel.active { display: flex; }
+
+/* header */
+.header { text-align: center; padding: 8px 0 4px; }
+.header .logo { display: inline-flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+.header .logo .dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; box-shadow: 0 0 10px var(--green); }
+.header .badge { display: inline-block; background: linear-gradient(135deg, var(--purple), var(--blue)); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-left: 4px; vertical-align: middle; letter-spacing: 0.5px; }
+
+/* card */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+.card-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+
+/* inputs */
+.input-row { display: flex; flex-direction: column; gap: 14px; }
+.input-group {}
+.input-group .label-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.input-group label { font-size: 14px; font-weight: 600; }
+.input-group .hint { font-size: 11px; color: var(--text-secondary); }
+.input-wrap { display: flex; align-items: center; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; transition: var(--transition); }
+.input-wrap:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px rgba(16,185,129,0.08); }
+.input-wrap .prefix { padding: 0 0 0 14px; color: var(--text-secondary); font-size: 13px; }
+.input-wrap input { flex: 1; background: transparent; border: none; outline: none; color: var(--text); font-size: 17px; font-weight: 600; padding: 13px 10px; font-family: "SF Mono","Menlo","Consolas",monospace; min-width: 0; font-variant-numeric: tabular-nums; }
+.input-wrap .suffix { padding: 0 14px 0 0; color: var(--text-secondary); font-size: 13px; font-weight: 600; }
+
+/* buttons */
+.btn { padding: 13px; border-radius: var(--radius-sm); border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: var(--transition); font-family: inherit; }
+.btn-primary { background: var(--green); color: #000; flex: 1; }
+.btn-primary:hover { filter: brightness(1.15); }
+.btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--card-hover); }
+.btn-sm { padding: 7px 14px; font-size: 12px; border-radius: 8px; }
+.btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+.btn-danger:hover { background: rgba(239,68,68,0.2); }
+.action-row { display: flex; gap: 10px; }
+
+/* preset */
+.preset-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.preset-btn { flex: 1; min-width: 65px; padding: 8px 6px; border: 1px solid var(--border); border-radius: 20px; background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: var(--transition); white-space: nowrap; text-align: center; }
+.preset-btn:hover { border-color: var(--green); color: var(--text); }
+.preset-btn.active { background: var(--green-bg); border-color: var(--green); color: var(--green); font-weight: 600; }
+
+/* result cards */
+.results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.result-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center; transition: var(--transition); }
+.result-card .rlabel { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+.result-card .rvalue { font-size: 26px; font-weight: 700; letter-spacing: -1px; font-family: "SF Mono","Menlo","Consolas",monospace; font-variant-numeric: tabular-nums; }
+.result-card.profit .rvalue { color: var(--green); }
+.result-card.loss .rvalue { color: var(--red); }
+.result-card.neutral .rvalue { color: var(--yellow); }
+.result-card.warning-glow { border-color: var(--red); box-shadow: 0 0 20px rgba(239,68,68,0.15); animation: pulse-warn 2s ease-in-out infinite; }
+@keyframes pulse-warn { 0%,100% { box-shadow: 0 0 20px rgba(239,68,68,0.15); } 50% { box-shadow: 0 0 30px rgba(239,68,68,0.30); } }
+
+/* gauge */
+.gauge-section { display: flex; flex-direction: column; gap: 8px; }
+.gauge-header { display: flex; justify-content: space-between; font-size: 13px; }
+.gauge-header .gh-left { color: var(--text-secondary); }
+.gauge-header .gh-right { font-weight: 600; }
+.gauge-track { height: 8px; background: var(--bg); border-radius: 8px; overflow: hidden; position: relative; }
+.gauge-fill { height: 100%; border-radius: 8px; background: var(--green); transition: width 0.4s ease, background 0.4s ease; }
+.gauge-fill.danger { background: var(--red); }
+.gauge-fill.warning { background: var(--yellow); }
+.gauge-marker { position: absolute; top: -3px; width: 3px; height: 14px; background: #fff; border-radius: 2px; transition: left 0.4s ease; box-shadow: 0 0 6px rgba(255,255,255,0.5); }
+
+/* insight */
+.insight { padding: 13px 15px; border-radius: var(--radius-sm); font-size: 13px; line-height: 1.7; }
+.insight.danger { background: var(--red-bg); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; }
+.insight.warning { background: var(--yellow-bg); border: 1px solid rgba(245,158,11,0.25); color: #fcd34d; }
+.insight.success { background: var(--green-bg); border: 1px solid rgba(16,185,129,0.25); color: #6ee7b7; }
+.insight strong { color: var(--text); }
+
+/* ─── Tab 2: Plan Table ─── */
+.plan-table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; padding: 0 4px; }
+.plan-table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 12px; }
+.plan-table th { text-align: left; padding: 8px 6px; color: var(--text-secondary); font-weight: 500; font-size: 11px; white-space: nowrap; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card); }
+.plan-table th.sortable { cursor: pointer; user-select: none; }
+.plan-table th.sortable:hover { color: var(--text); }
+.plan-table th .sort-arrow { font-size: 10px; margin-left: 2px; }
+.plan-table td { padding: 6px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+.plan-table td input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 7px 8px; font-size: 12px; font-family: "SF Mono","Menlo","Consolas",monospace; text-align: right; min-width: 60px; }
+.plan-table td input.name-input { text-align: left; min-width: 90px; font-family: inherit; }
+.plan-table td input:focus { outline: none; border-color: var(--green); }
+.plan-table tr.row-profit { background: rgba(16,185,129,0.04); }
+.plan-table tr.row-loss { background: rgba(239,68,68,0.04); }
+.plan-table .del-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 16px; padding: 4px; line-height: 1; }
+.plan-table .del-btn:hover { color: var(--red); }
+.summary-row td { font-weight: 700; border-top: 2px solid var(--border); color: var(--text); font-size: 13px; padding-top: 10px; }
+
+/* ─── Tab 3: History ─── */
+.history-chart-wrap { position: relative; width: 100%; height: 260px; margin-bottom: 8px; }
+.history-chart-wrap canvas { width: 100% !important; height: 100% !important; }
+.history-filters { display: flex; gap: 8px; margin-bottom: 12px; }
+.history-filters .filter-btn { padding: 6px 14px; border-radius: 16px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: var(--transition); }
+.history-filters .filter-btn.active { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); font-weight: 600; }
+.history-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.history-item { display: flex; align-items: center; justify-content: space-between; background: var(--bg); border-radius: var(--radius-sm); padding: 12px 14px; gap: 10px; }
+.history-item .hi-date { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+.history-item .hi-kpis { display: flex; gap: 14px; font-size: 12px; flex-wrap: wrap; }
+.history-item .hi-kpis span { white-space: nowrap; }
+.history-item .hi-kpis .hi-profit { font-weight: 700; }
+.history-item .hi-kpis .hi-profit.pos { color: var(--green); }
+.history-item .hi-kpis .hi-profit.neg { color: var(--red); }
+.history-item .hi-del { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 14px; padding: 2px; }
+.history-item .hi-del:hover { color: var(--red); }
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text-secondary); font-size: 14px; line-height: 1.8; }
+
+/* ─── Tab 4: Bid Suggest ─── */
+.suggest-result { display: flex; flex-direction: column; gap: 12px; }
+.suggest-card { background: var(--bg); border-radius: var(--radius-sm); padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; }
+.suggest-card .slabel { font-size: 13px; color: var(--text-secondary); }
+.suggest-card .svalue { font-size: 20px; font-weight: 700; font-family: "SF Mono","Menlo","Consolas",monospace; }
+.suggest-card .svalue.green { color: var(--green); }
+.suggest-card .svalue.blue { color: var(--blue); }
+.suggest-card .stag { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.suggest-card .stag.conservative { background: var(--blue-bg); color: var(--blue); }
+.suggest-card .stag.aggressive { background: var(--yellow-bg); color: var(--yellow); }
+
+/* ─── Pro Gate ─── */
+.pro-gate { position: relative; }
+.pro-gate .pro-overlay { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 32px 20px; text-align: center; background: rgba(10,10,15,0.92); border: 1px dashed var(--purple); border-radius: var(--radius); }
+.pro-gate .pro-overlay .pro-icon { font-size: 36px; }
+.pro-gate .pro-overlay .pro-title { font-size: 18px; font-weight: 700; }
+.pro-gate .pro-overlay .pro-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; max-width: 280px; }
+.pro-gate .pro-overlay .pro-price { font-size: 28px; font-weight: 700; color: var(--purple); }
+.pro-gate .pro-overlay .pro-price sub { font-size: 13px; color: var(--text-secondary); font-weight: 400; }
+.pro-gate .pro-overlay .activate-row { display: flex; gap: 8px; width: 100%; max-width: 300px; }
+.pro-gate .pro-overlay .activate-row input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 10px; font-size: 13px; font-family: "SF Mono","Menlo",monospace; text-align: center; letter-spacing: 2px; }
+.pro-gate .pro-overlay .activate-row input:focus { outline: none; border-color: var(--purple); }
+.pro-gate .pro-content { filter: blur(5px); pointer-events: none; user-select: none; opacity: 0.4; }
+.pro-gate.unlocked .pro-overlay { display: none; }
+.pro-gate.unlocked .pro-content { filter: none; pointer-events: auto; user-select: auto; opacity: 1; }
+.pro-badge { display: inline-flex; align-items: center; gap: 4px; background: linear-gradient(135deg, var(--purple), var(--blue)); color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; cursor: pointer; }
+
+/* toast */
+.toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(120px); background: var(--green); color: #000; padding: 11px 22px; border-radius: 24px; font-weight: 600; font-size: 14px; z-index: 200; transition: transform 0.3s ease; pointer-events: none; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.error { background: var(--red); color: #fff; }
+
+/* tab bar */
+.tab-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10,10,15,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 6px 8px env(safe-area-inset-bottom, 8px); z-index: 100; }
+.tab-item { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 10px; cursor: pointer; border: none; background: none; color: var(--text-secondary); font-size: 10px; font-family: inherit; transition: var(--transition); min-width: 60px; }
+.tab-item .tab-icon { font-size: 20px; transition: var(--transition); }
+.tab-item.active { color: var(--green); }
+.tab-item.active .tab-icon { transform: translateY(-2px); }
+.tab-item .tab-lock { font-size: 9px; color: var(--purple); }
+
+/* license modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 300; align-items: center; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal-box { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; width: 90%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; }
+.modal-box h3 { font-size: 18px; }
+.modal-box p { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+.modal-box .modal-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 12px; font-size: 14px; font-family: "SF Mono","Menlo",monospace; text-align: center; letter-spacing: 2px; }
+.modal-box .modal-input:focus { outline: none; border-color: var(--purple); }
+.modal-box .modal-error { font-size: 12px; color: var(--red); display: none; }
+
+@media (max-width: 400px) {
+  .results-grid { grid-template-columns: 1fr; }
+  .result-card .rvalue { font-size: 22px; }
+  .input-wrap input { font-size: 15px; }
+  .btn { font-size: 13px; padding: 11px; }
+  .history-item { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<!-- ═══ HEADER ═══ -->
+<div class="header">
+  <div class="logo"><span class="dot"></span>千川投放ROI计算器 <span class="badge" id="headerBadge" onclick="showLicenseModal()">PRO</span></div>
+</div>
+
+<!-- ═══ PANEL 1: 单计划 ═══ -->
+<div class="panel active" id="panel-single">
+  <div class="card">
+    <div class="card-title">📌 快速预设场景</div>
+    <div class="preset-row">
+      <button class="preset-btn active" data-preset="daily">日常投放</button>
+      <button class="preset-btn" data-preset="cold">冷启动</button>
+      <button class="preset-btn" data-preset="promo">大促冲量</button>
+      <button class="preset-btn" data-preset="custom">自定义</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="input-row">
+      <div class="input-group"><div class="label-row"><label>💰 消耗金额</label><span class="hint">计划实际花费</span></div><div class="input-wrap"><span class="prefix">¥</span><input type="number" id="spend" value="3000" min="0" step="100"><span class="suffix">元</span></div></div>
+      <div class="input-group"><div class="label-row"><label>📦 成交GMV</label><span class="hint">计划带来的总销售额</span></div><div class="input-wrap"><span class="prefix">¥</span><input type="number" id="gmv" value="10500" min="0" step="100"><span class="suffix">元</span></div></div>
+      <div class="input-group"><div class="label-row"><label>↩️ 退款率</label><span class="hint">含发货后退款 + 仅退款</span></div><div class="input-wrap"><input type="number" id="refundRate" value="28" min="0" max="100" step="0.5"><span class="suffix">%</span></div></div>
+      <div class="input-group"><div class="label-row"><label>📊 毛利率</label><span class="hint">(售价-成本)/售价</span></div><div class="input-wrap"><input type="number" id="marginRate" value="45" min="0" max="100" step="0.5"><span class="suffix">%</span></div></div>
+    </div>
+  </div>
+
+  <div class="results-grid">
+    <div class="result-card" id="cardPayRoi"><div class="rlabel">支付ROI</div><div class="rvalue">--</div></div>
+    <div class="result-card" id="cardSettleRoi"><div class="rlabel">结算ROI（扣退款）</div><div class="rvalue">--</div></div>
+    <div class="result-card" id="cardProfit"><div class="rlabel">净利润</div><div class="rvalue">--</div></div>
+    <div class="result-card" id="cardBreakeven"><div class="rlabel">保本ROI</div><div class="rvalue">--</div></div>
+  </div>
+
+  <div class="card"><div class="gauge-section">
+    <div class="gauge-header"><span class="gh-left">当前结算ROI vs 保本线</span><span class="gh-right" id="gaugeLabel">等待输入</span></div>
+    <div class="gauge-track"><div class="gauge-fill" id="gaugeFill" style="width:0%"></div><div class="gauge-marker" id="gaugeMarker" style="left:0%"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);"><span>0</span><span style="font-weight:600;color:var(--text);" id="breakevenLabel">保本 --</span><span id="currentRoiLabel">--</span></div>
+  </div></div>
+
+  <div class="insight" id="insightBox"><strong>输入数据后自动计算</strong><br>支持支付ROI / 结算ROI / 保本线 / 盈亏诊断</div>
+
+  <div class="action-row">
+    <button class="btn btn-secondary" onclick="resetSingle()">🔄 重置</button>
+    <button class="btn btn-secondary" onclick="saveHistory()" style="flex:1;">💾 保存记录</button>
+    <button class="btn btn-primary" onclick="exportImage()">📸 导出图片</button>
+  </div>
+</div>
+
+<!-- ═══ PANEL 2: 多计划对比 ═══ -->
+<div class="panel" id="panel-compare">
+  <div class="pro-gate" id="proGateCompare">
+    <div class="pro-overlay">
+      <div class="pro-icon">🔒</div>
+      <div class="pro-title">多计划对比 · Pro 功能</div>
+      <div class="pro-desc">同时管理最多10条投放计划，自动排名盈利/亏损，横向对比一目了然</div>
+      <div class="pro-price">¥9.9<sub>/永久</sub></div>
+      <div class="activate-row"><input type="text" id="activateInputCompare" placeholder="输入激活码" maxlength="20"><button class="btn btn-primary btn-sm" onclick="activatePro()">激活</button></div>
+      <div style="font-size:11px;color:var(--text-secondary);">购买后获得激活码 · 一码一机</div>
+    </div>
+    <div class="pro-content">
+      <div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center;"><span>📋 计划列表</span><span style="font-size:11px;color:var(--text-secondary);" id="planCount">0/10 条</span></div>
+        <div class="plan-table-wrapper"><table class="plan-table">
+          <thead><tr>
+            <th style="width:100px;">计划名称</th>
+            <th class="sortable" onclick="sortPlans('spend')">消耗 <span class="sort-arrow">⇅</span></th>
+            <th class="sortable" onclick="sortPlans('gmv')">GMV <span class="sort-arrow">⇅</span></th>
+            <th>退款率</th>
+            <th>毛利率</th>
+            <th>支付ROI</th>
+            <th>结算ROI</th>
+            <th>净利润</th>
+            <th style="width:28px;"></th>
+          </tr></thead>
+          <tbody id="planTableBody"></tbody>
+          <tfoot id="planTableFoot"></tfoot>
+        </table></div>
+      </div>
+      <div class="action-row">
+        <button class="btn btn-primary" onclick="addPlan()">➕ 添加计划</button>
+        <button class="btn btn-secondary" onclick="clearAllPlans()">清空全部</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PANEL 3: 历史趋势 ═══ -->
+<div class="panel" id="panel-history">
+  <div class="pro-gate" id="proGateHistory">
+    <div class="pro-overlay">
+      <div class="pro-icon">🔒</div>
+      <div class="pro-title">历史趋势 · Pro 功能</div>
+      <div class="pro-desc">每日数据自动保存，趋势图表追踪ROI变化，支持导出CSV报表</div>
+      <div class="pro-price">¥9.9<sub>/永久</sub></div>
+      <div class="activate-row"><input type="text" id="activateInputHistory" placeholder="输入激活码" maxlength="20"><button class="btn btn-primary btn-sm" onclick="activatePro()">激活</button></div>
+      <div style="font-size:11px;color:var(--text-secondary);">购买后获得激活码 · 一码一机</div>
+    </div>
+    <div class="pro-content">
+      <div class="card">
+        <div class="history-filters">
+          <button class="filter-btn active" data-range="7">近7天</button>
+          <button class="filter-btn" data-range="30">近30天</button>
+          <button class="filter-btn" data-range="all">全部</button>
+        </div>
+        <div class="history-chart-wrap"><canvas id="historyChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>📋 历史记录</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 导出CSV</button>
+            <button class="btn btn-danger btn-sm" onclick="clearHistory()">清空</button>
+          </div>
+        </div>
+        <div class="history-list" id="historyList"><div class="empty-state">暂无记录<br>在「单计划」页计算后点击「💾 保存记录」</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PANEL 4: 出价建议 ═══ -->
+<div class="panel" id="panel-bid">
+  <div class="card">
+    <div class="card-title">🎯 反推出价</div>
+    <div class="input-row">
+      <div class="input-group"><div class="label-row"><label>📦 预期GMV</label><span class="hint">你想达成的销售额</span></div><div class="input-wrap"><span class="prefix">¥</span><input type="number" id="bidGmv" value="10000" min="0" step="500"><span class="suffix">元</span></div></div>
+      <div class="input-group"><div class="label-row"><label>↩️ 退款率</label></div><div class="input-wrap"><input type="number" id="bidRefund" value="28" min="0" max="100" step="0.5"><span class="suffix">%</span></div></div>
+      <div class="input-group"><div class="label-row"><label>📊 毛利率</label></div><div class="input-wrap"><input type="number" id="bidMargin" value="45" min="0" max="100" step="0.5"><span class="suffix">%</span></div></div>
+      <div class="input-group"><div class="label-row"><label>🎯 目标结算ROI</label><span class="hint">扣退款后想达到的ROI</span></div><div class="input-wrap"><input type="number" id="bidTargetRoi" value="2.0" min="0.1" step="0.1"><span class="suffix">倍</span></div></div>
+    </div>
+  </div>
+
+  <div class="suggest-result" id="suggestResult" style="display:none;">
+    <div class="suggest-card"><div class="slabel">🛡️ 保守出价（保本线 + 20%）</div><div><div class="svalue blue" id="suggestConservative">--</div></div><span class="stag conservative">保守</span></div>
+    <div class="suggest-card"><div class="slabel">⚡ 建议出价</div><div><div class="svalue green" id="suggestNormal">--</div></div><span class="stag" style="background:var(--green-bg);color:var(--green);">推荐</span></div>
+    <div class="suggest-card"><div class="slabel">🚀 激进出价</div><div><div class="svalue" style="color:var(--yellow);" id="suggestAggressive">--</div></div><span class="stag aggressive">激进</span></div>
+    <div class="suggest-card"><div class="slabel">💰 建议日预算上限</div><div class="svalue" style="color:var(--text);" id="suggestBudget">--</div></div>
+    <div class="suggest-card"><div class="slabel">📈 预计净利润</div><div class="svalue green" id="suggestProfit">--</div></div>
+  </div>
+  <div class="insight" id="bidInsight"><strong>输入数据后自动计算</strong><br>根据目标ROI反推合理出价区间和预算上限</div>
+</div>
+
+</div><!-- /container -->
+
+<!-- ═══ TAB BAR ═══ -->
+<div class="tab-bar">
+  <button class="tab-item active" data-panel="single"><span class="tab-icon">📊</span>单计划</button>
+  <button class="tab-item" data-panel="compare"><span class="tab-icon">📋</span>多对比<span class="tab-lock" id="tabLockCompare">🔒</span></button>
+  <button class="tab-item" data-panel="history"><span class="tab-icon">📈</span>历史<span class="tab-lock" id="tabLockHistory">🔒</span></button>
+  <button class="tab-item" data-panel="bid"><span class="tab-icon">🎯</span>出价建议</button>
+</div>
+
+<!-- ═══ LICENSE MODAL ═══ -->
+<div class="modal-overlay" id="licenseModal">
+  <div class="modal-box">
+    <h3>🔑 激活 Pro 版本</h3>
+    <p>包含：多计划对比 + 历史趋势 + CSV导出<br>购买后获得专属激活码，永久有效。</p>
+    <p style="font-size:12px;color:var(--yellow);">💡 试用激活码：<b>QIANCHUAN2026</b></p>
+    <p style="font-size:11px;color:var(--text-secondary);">卖家后台：浏览器按 F12 → Console → 输入 <code style="background:var(--bg);padding:2px 6px;border-radius:4px;">generateKeys('QC-B006', 50)</code> 批量生成新码</p>
+    <input class="modal-input" id="modalActivateInput" placeholder="请输入激活码" maxlength="20" autocomplete="off">
+    <div class="modal-error" id="modalError">激活码无效，请检查后重试</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-secondary" onclick="closeLicenseModal()" style="flex:1;">取消</button>
+      <button class="btn btn-primary" onclick="activateProFromModal()" style="flex:1;">激活</button>
+    </div>
+    <div style="text-align:center;font-size:11px;color:var(--text-secondary);" id="modalStatus"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+//  GLOBAL STATE
+// ═══════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const STORAGE_KEY_ACTIVATED = 'qcroi_pro_activated';
+const STORAGE_KEY_PLANS     = 'qcroi_plans';
+const STORAGE_KEY_HISTORY   = 'qcroi_history';
+let isPro = localStorage.getItem(STORAGE_KEY_ACTIVATED) === 'true';
+
+// ═══════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════
+document.querySelectorAll('.tab-item').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    $('panel-' + tab.dataset.panel).classList.add('active');
+    if (tab.dataset.panel === 'history') { renderHistory(); }
+    if (tab.dataset.panel === 'compare') { renderPlans(); }
+    if (tab.dataset.panel === 'bid') { calcBid(); }
+  });
+});
+
+// ═══════════════════════════════════════════
+//  PRO LICENSE
+// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
+//  PRO LICENSE — 激活码管理
+//  ═══════════════════════════════════════════
+//  【卖家看这里】
+//  - ALL_KEYS 是所有有效激活码，一行一个
+//  - 添加新码：在数组里加一行 'QC-XXXX-XXXX'
+//  - 废除某个码：从那行删掉即可
+//  - 批量生成新码：用下方 generateKeys() 工具函数
+//  - 试用品/自己人用的通用码放在 TRIAL_KEYS 里
+//  ═══════════════════════════════════════════
+
+const TRIAL_KEYS = [
+  'QIANCHUAN2026',       // 试用通用码
+];
+
+// 正式售卖激活码池（一码一人，付款后发放）
+const PAID_KEYS = [
+  'QC-B001-A7F3', 'QC-B001-B2G8', 'QC-B001-C9H1', 'QC-B001-D4J6', 'QC-B001-E8K2',
+  'QC-B001-F3L9', 'QC-B001-G7M5', 'QC-B001-H1N4', 'QC-B001-J5P8', 'QC-B001-K9Q3',
+  'QC-B002-A2R7', 'QC-B002-B6S1', 'QC-B002-C1T5', 'QC-B002-D8U9', 'QC-B002-E3V4',
+  'QC-B002-F7W8', 'QC-B002-G2X3', 'QC-B002-H6Y7', 'QC-B002-J1Z2', 'QC-B002-K5A9',
+  'QC-B003-A8B4', 'QC-B003-B3C8', 'QC-B003-C7D2', 'QC-B003-D1E6', 'QC-B003-E5F1',
+  'QC-B003-F9G5', 'QC-B003-G4H9', 'QC-B003-H8J3', 'QC-B003-J2K7', 'QC-B003-K6L1',
+  'QC-B004-A4M5', 'QC-B004-B8N9', 'QC-B004-C3P4', 'QC-B004-D7Q8', 'QC-B004-E2R3',
+  'QC-B004-F6S7', 'QC-B004-G1T2', 'QC-B004-H5U6', 'QC-B004-J9V1', 'QC-B004-K4W5',
+  'QC-B005-A1X9', 'QC-B005-B5Y4', 'QC-B005-C9Z8', 'QC-B005-D4A3', 'QC-B005-E8B7',
+  'QC-B005-F3C2', 'QC-B005-G7D6', 'QC-B005-H2E1', 'QC-B005-J6F5', 'QC-B005-K1G9',
+];
+
+const ALL_KEYS = [...TRIAL_KEYS, ...PAID_KEYS];
+
+function checkPro() {
+  isPro = localStorage.getItem(STORAGE_KEY_ACTIVATED) === 'true';
+  updateProUI();
+}
+
+function updateProUI() {
+  const badge = $('headerBadge');
+  const lockC = $('tabLockCompare');
+  const lockH = $('tabLockHistory');
+
+  if (isPro) {
+    badge.textContent = 'PRO';
+    badge.style.background = 'linear-gradient(135deg, var(--purple), var(--blue))';
+    if (lockC) lockC.style.display = 'none';
+    if (lockH) lockH.style.display = 'none';
+    // unlock gates
+    const gates = document.querySelectorAll('.pro-gate');
+    gates.forEach(g => g.classList.add('unlocked'));
+    // load pro data
+    renderPlans();
+    renderHistory();
+  } else {
+    badge.textContent = '升级Pro';
+    badge.style.background = 'linear-gradient(135deg, #666, #888)';
+    if (lockC) lockC.style.display = 'inline';
+    if (lockH) lockH.style.display = 'inline';
+    const gates = document.querySelectorAll('.pro-gate');
+    gates.forEach(g => g.classList.remove('unlocked'));
+  }
+}
+
+function showLicenseModal() {
+  if (isPro) {
+    const usedKey = localStorage.getItem('qcroi_used_key') || '未知';
+    $('modalStatus').textContent = '✅ 已激活 Pro 版本（激活码: ' + usedKey + '）';
+    $('modalActivateInput').style.display = 'none';
+    document.querySelector('#licenseModal .btn-primary').style.display = 'none';
+    // 卖家后台入口
+    if (usedKey === 'QIANCHUAN2026' || usedKey.startsWith('ADMIN-')) {
+      $('modalStatus').textContent += '\n💡 卖家模式：可在Console调用 generateKeys() 批量生成激活码';
+    }
+  } else {
+    $('modalStatus').textContent = '';
+    $('modalActivateInput').style.display = '';
+    document.querySelector('#licenseModal .btn-primary').style.display = '';
+  }
+  $('modalActivateInput').value = '';
+  $('modalError').style.display = 'none';
+  $('licenseModal').classList.add('show');
+}
+
+function closeLicenseModal() {
+  $('licenseModal').classList.remove('show');
+}
+
+function activateProFromModal() {
+  const code = $('modalActivateInput').value.trim().toUpperCase();
+  doActivate(code);
+}
+
+function activatePro() {
+  const code = ($('activateInputCompare').value || $('activateInputHistory').value || '').trim().toUpperCase();
+  doActivate(code);
+}
+
+function doActivate(code) {
+  if (ALL_KEYS.includes(code)) {
+    localStorage.setItem(STORAGE_KEY_ACTIVATED, 'true');
+    localStorage.setItem('qcroi_used_key', code);
+    // 更新已使用标记（用于卖家追踪哪个码已被激活）
+    markKeyUsed(code);
+    checkPro();
+    closeLicenseModal();
+    showToast('✅ Pro 已激活！享受全部功能');
+    // refresh pro panels
+    renderPlans();
+    renderHistory();
+    $('activateInputCompare').value = '';
+    $('activateInputHistory').value = '';
+  } else {
+    $('modalError').style.display = 'block';
+    showToast('激活码无效，请检查后重试', true);
+  }
+}
+
+// 记录已使用的激活码（卖家可用来追踪）
+function markKeyUsed(code) {
+  try {
+    const used = JSON.parse(localStorage.getItem('qcroi_used_keys_log') || '{}');
+    used[code] = new Date().toISOString();
+    localStorage.setItem('qcroi_used_keys_log', JSON.stringify(used));
+  } catch(e) {}
+}
+
+// 卖家管理：查看本机已使用的激活码
+function getUsedKeys() {
+  try { return JSON.parse(localStorage.getItem('qcroi_used_keys_log') || '{}'); }
+  catch(e) { return {}; }
+}
+
+// 卖家工具：批量生成激活码（在浏览器 Console 里调用）
+// 用法: generateKeys('QC-B006', 50) → 打印50个激活码，复制到 PAID_KEYS 数组里
+function generateKeys(prefix, count) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 去掉容易混淆的 0/O/1/I
+  const results = [];
+  for (let i = 0; i < count; i++) {
+    let suffix = '';
+    for (let j = 0; j < 4; j++) suffix += chars[Math.floor(Math.random() * chars.length)];
+    results.push(prefix + '-' + suffix);
+  }
+  console.log('=== 新一批激活码（复制到 PAID_KEYS） ===');
+  results.forEach((k, i) => {
+    const chunk = i % 5 === 0 ? (i > 0 ? ',\n  ' : '  ') : ', ';
+    console.log(chunk + "'" + k + "'");
+  });
+  console.log('=== 共 ' + count + ' 个 ===');
+  return results;
+}
+
+// 卖家工具：检查某个激活码是否已被使用过（本机记录）
+function isKeyUsed(code) {
+  const used = getUsedKeys();
+  return !!used[code];
+}
+
+// ═══════════════════════════════════════════
+//  TAB 1: 单计划计算
+// ═══════════════════════════════════════════
+const spendInp = $('spend'), gmvInp = $('gmv'), refundInp = $('refundRate'), marginInp = $('marginRate');
+const cardPayRoi = $('cardPayRoi'), cardSettleRoi = $('cardSettleRoi'), cardProfit = $('cardProfit'), cardBreakeven = $('cardBreakeven');
+const gaugeFill = $('gaugeFill'), gaugeMarker = $('gaugeMarker'), gaugeLabel = $('gaugeLabel');
+const breakevenLabel = $('breakevenLabel'), currentRoiLabel = $('currentRoiLabel'), insightBox = $('insightBox');
+
+let currentCalc = null; // stores latest calc result for history save
+
+function calcSingle() {
+  const spend = parseFloat(spendInp.value) || 0;
+  const gmv = parseFloat(gmvInp.value) || 0;
+  const refund = (parseFloat(refundInp.value) || 0) / 100;
+  const margin = (parseFloat(marginInp.value) || 0) / 100;
+
+  if (spend <= 0 || gmv <= 0) { clearSingleResults(); return; }
+
+  const payRoi = gmv / spend;
+  const settleGmv = gmv * (1 - refund);
+  const settleRoi = settleGmv / spend;
+  const grossProfit = settleGmv * margin;
+  const netProfit = grossProfit - spend;
+  const breakevenRoi = (margin > 0 && refund < 1) ? 1 / (margin * (1 - refund)) : Infinity;
+
+  currentCalc = { spend, gmv, refund, margin, payRoi, settleRoi, netProfit, breakevenRoi, date: new Date().toISOString() };
+
+  updateCard(cardPayRoi, '支付ROI', payRoi.toFixed(2), 'neutral');
+  updateCard(cardSettleRoi, '结算ROI（扣退款）', settleRoi.toFixed(2), 'neutral');
+  updateCard(cardProfit, '净利润', fmtMoney(netProfit), netProfit >= 0 ? 'profit' : 'loss');
+  updateCard(cardBreakeven, '保本ROI', breakevenRoi === Infinity ? '--' : breakevenRoi.toFixed(2), 'neutral');
+
+  if (netProfit < 0 && isFinite(breakevenRoi)) { cardBreakeven.classList.add('warning-glow'); }
+  else { cardBreakeven.classList.remove('warning-glow'); }
+
+  updateGauge(settleRoi, breakevenRoi, netProfit);
+  updateInsight(netProfit, settleRoi, breakevenRoi, spend);
+
+  // auto-save to history if pro
+  // (manual save button handles this)
+}
+
+function updateCard(el, label, value, mood) {
+  el.querySelector('.rlabel').textContent = label;
+  el.querySelector('.rvalue').textContent = value;
+  el.className = 'result-card ' + mood;
+}
+
+function updateGauge(settleRoi, breakevenRoi, netProfit) {
+  const gaugeMax = isFinite(breakevenRoi) ? Math.max(breakevenRoi * 2, settleRoi * 1.2) : settleRoi * 1.5;
+  const settlePct = Math.min((settleRoi / gaugeMax) * 100, 100);
+  const bePct = isFinite(breakevenRoi) ? (breakevenRoi / gaugeMax) * 100 : 50;
+  gaugeFill.style.width = settlePct + '%';
+  gaugeFill.className = 'gauge-fill';
+  if (netProfit < 0) gaugeFill.classList.add('danger');
+  else if (netProfit < parseFloat(spendInp.value || 0) * 0.1) gaugeFill.classList.add('warning');
+  gaugeMarker.style.left = bePct + '%';
+  gaugeLabel.textContent = netProfit >= 0 ? '盈利中 ✅' : '亏损中 ⚠️';
+  breakevenLabel.textContent = '保本 ' + (isFinite(breakevenRoi) ? breakevenRoi.toFixed(2) : '--');
+  currentRoiLabel.textContent = settleRoi.toFixed(2);
+}
+
+function updateInsight(netProfit, settleRoi, breakevenRoi, spend) {
+  let cls, html;
+  if (netProfit >= 0 && settleRoi >= breakevenRoi * 1.3) {
+    cls = 'success';
+    html = `<strong>🟢 投放健康，盈利状态良好</strong><br>结算ROI <b>${settleRoi.toFixed(2)}</b>，超保本线 ${((settleRoi/breakevenRoi-1)*100).toFixed(0)}%。<br>① 可阶梯式加预算，探索更大跑量<br>② 复制人群包到新计划扩量测试<br>③ 关注素材衰减周期，准备替换素材`;
+  } else if (netProfit >= 0) {
+    cls = 'warning';
+    html = `<strong>🟡 微利状态，谨慎放量</strong><br>净利润 <b>¥${fmtNum(netProfit)}</b>，紧贴保本线。<br>① 暂不加预算，先优化素材和人群<br>② 排查高退款率货品<br>③ 直播间转化率每提升0.5%，ROI可提升约${((0.005/(breakevenRoi||1))*100).toFixed(0)}%`;
+  } else if (settleRoi >= breakevenRoi * 0.7) {
+    cls = 'warning';
+    html = `<strong>🟠 轻度亏损，需要尽快调整</strong><br>结算ROI <b>${settleRoi.toFixed(2)}</b> vs 保本线 <b>${breakevenRoi.toFixed(2)}</b>，每花100块约亏<b>¥${fmtNum(Math.abs(netProfit)/spend*100)}</b>。<br>① 出价下调10-20%，观察跑量<br>② 优化素材前3秒完播率，提升CTR<br>③ 收缩人群定向，先跑精准标签`;
+  } else {
+    cls = 'danger';
+    html = `<strong>🔴 严重亏损，建议立即关停</strong><br>结算ROI仅<b>${settleRoi.toFixed(2)}</b>，远未触及保本线<b>${breakevenRoi.toFixed(2)}</b>。<br>① 暂停计划，复盘根源（素材/人群/出价/直播间）<br>② 重建前先小预算（200-500/天）测试<br>③ 检查人货场：停留<60s、互动<3%先优化`;
+  }
+  insightBox.className = 'insight ' + cls;
+  insightBox.innerHTML = html;
+}
+
+function clearSingleResults() {
+  currentCalc = null;
+  ['支付ROI','结算ROI（扣退款）','净利润','保本ROI'].forEach((l,i) => {
+    updateCard([cardPayRoi,cardSettleRoi,cardProfit,cardBreakeven][i], l, '--', 'neutral');
+  });
+  cardBreakeven.classList.remove('warning-glow');
+  gaugeFill.style.width = '0%'; gaugeMarker.style.left = '0%';
+  gaugeLabel.textContent = '等待输入';
+  breakevenLabel.textContent = '保本 --'; currentRoiLabel.textContent = '--';
+  insightBox.className = 'insight';
+  insightBox.innerHTML = '<strong>输入数据后自动计算</strong><br>支持支付ROI / 结算ROI / 保本线 / 盈亏诊断';
+}
+
+function resetSingle() {
+  spendInp.value = 0; gmvInp.value = 0; refundInp.value = 0; marginInp.value = 0;
+  document.querySelectorAll('#panel-single .preset-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('#panel-single .preset-btn[data-preset="custom"]').classList.add('active');
+  clearSingleResults();
+}
+
+// presets (tab 1)
+const presets = {
+  daily:  { spend: 3000, gmv: 10500, refund: 28, margin: 45 },
+  cold:   { spend: 500,  gmv: 1200,  refund: 35, margin: 40 },
+  promo:  { spend: 20000,gmv: 82000, refund: 32, margin: 35 },
+  custom: { spend: 0,    gmv: 0,     refund: 0,  margin: 0 },
+};
+document.querySelectorAll('#panel-single .preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#panel-single .preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const p = presets[btn.dataset.preset];
+    if (p) { spendInp.value = p.spend; gmvInp.value = p.gmv; refundInp.value = p.refund; marginInp.value = p.margin; calcSingle(); }
+  });
+});
+[spendInp, gmvInp, refundInp, marginInp].forEach(el => el.addEventListener('input', calcSingle));
+
+// ═══════════════════════════════════════════
+//  HISTORY SAVE (from tab 1)
+// ═══════════════════════════════════════════
+function saveHistory() {
+  if (!currentCalc) { showToast('请先输入数据并计算', true); return; }
+  const records = getHistory();
+  records.unshift({
+    date: new Date().toISOString().slice(0,10),
+    spend: currentCalc.spend,
+    gmv: currentCalc.gmv,
+    refundRate: parseFloat(refundInp.value) || 0,
+    marginRate: parseFloat(marginInp.value) || 0,
+    payRoi: currentCalc.payRoi,
+    settleRoi: currentCalc.settleRoi,
+    netProfit: currentCalc.netProfit,
+    breakevenRoi: currentCalc.breakevenRoi,
+  });
+  // keep max 365 records
+  if (records.length > 365) records.length = 365;
+  localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(records));
+  showToast('✅ 记录已保存');
+}
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY_HISTORY) || '[]'); }
+  catch(e) { return []; }
+}
+
+// ═══════════════════════════════════════════
+//  TAB 2: 多计划对比
+// ═══════════════════════════════════════════
+let planSortKey = null, planSortAsc = false;
+
+function getPlans() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY_PLANS) || '[]'); }
+  catch(e) { return []; }
+}
+function savePlans(plans) { localStorage.setItem(STORAGE_KEY_PLANS, JSON.stringify(plans)); }
+
+function addPlan(name) {
+  if (!isPro) { showToast('请先激活 Pro', true); showLicenseModal(); return; }
+  const plans = getPlans();
+  if (plans.length >= 10) { showToast('最多10条计划', true); return; }
+  plans.push({ id: Date.now(), name: name || ('计划' + (plans.length + 1)), spend: 0, gmv: 0, refundRate: 28, marginRate: 45 });
+  savePlans(plans);
+  renderPlans();
+}
+
+function updatePlan(id, field, value) {
+  const plans = getPlans();
+  const p = plans.find(x => x.id === id);
+  if (p) { p[field] = field === 'name' ? value : (parseFloat(value) || 0); savePlans(plans); renderPlans(); }
+}
+
+function deletePlan(id) {
+  const plans = getPlans().filter(x => x.id !== id);
+  savePlans(plans);
+  renderPlans();
+}
+
+function clearAllPlans() {
+  if (!confirm('确定清空全部计划？')) return;
+  savePlans([]);
+  renderPlans();
+}
+
+function sortPlans(key) {
+  if (planSortKey === key) { planSortAsc = !planSortAsc; }
+  else { planSortKey = key; planSortAsc = false; }
+  renderPlans();
+}
+
+function calcPlanRow(p) {
+  const spend = p.spend || 0, gmv = p.gmv || 0;
+  const refund = (p.refundRate || 0) / 100;
+  const margin = (p.marginRate || 0) / 100;
+  if (spend <= 0 || gmv <= 0) return { payRoi: 0, settleRoi: 0, netProfit: 0, breakevenRoi: Infinity };
+  const payRoi = gmv / spend;
+  const settleGmv = gmv * (1 - refund);
+  const settleRoi = settleGmv / spend;
+  const netProfit = settleGmv * margin - spend;
+  const breakevenRoi = (margin > 0 && refund < 1) ? 1 / (margin * (1 - refund)) : Infinity;
+  return { payRoi, settleRoi, netProfit, breakevenRoi };
+}
+
+function renderPlans() {
+  if (!isPro) { updateProUI(); return; }
+  const plans = getPlans();
+  $('planCount').textContent = plans.length + '/10 条';
+  const tbody = $('planTableBody');
+  const tfoot = $('planTableFoot');
+
+  // compute
+  const rows = plans.map(p => ({ ...p, ...calcPlanRow(p) }));
+
+  // sort
+  if (planSortKey) {
+    rows.sort((a,b) => {
+      let va = a[planSortKey], vb = b[planSortKey];
+      if (planSortKey === 'spend' || planSortKey === 'gmv') { va = va || 0; vb = vb || 0; }
+      return planSortAsc ? va - vb : vb - va;
+    });
+  }
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-secondary);">暂无计划<br>点击「➕ 添加计划」开始</td></tr>';
+    tfoot.innerHTML = '';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(p => {
+    const cls = p.netProfit >= 0 ? 'row-profit' : 'row-loss';
+    return `<tr class="${cls}">
+      <td><input class="name-input" value="${escHtml(p.name)}" onchange="updatePlan(${p.id},'name',this.value)" placeholder="计划名"></td>
+      <td><input type="number" value="${p.spend||0}" onchange="updatePlan(${p.id},'spend',this.value)" step="100"></td>
+      <td><input type="number" value="${p.gmv||0}" onchange="updatePlan(${p.id},'gmv',this.value)" step="100"></td>
+      <td><input type="number" value="${p.refundRate}" onchange="updatePlan(${p.id},'refundRate',this.value)" step="0.5" style="min-width:55px;">%</td>
+      <td><input type="number" value="${p.marginRate}" onchange="updatePlan(${p.id},'marginRate',this.value)" step="0.5" style="min-width:55px;">%</td>
+      <td style="color:${p.payRoi>=p.breakevenRoi?'var(--green)':'var(--text)'};font-weight:600;">${p.payRoi.toFixed(2)}</td>
+      <td style="color:${p.netProfit>=0?'var(--green)':'var(--red)'};font-weight:600;">${p.settleRoi.toFixed(2)}</td>
+      <td style="color:${p.netProfit>=0?'var(--green)':'var(--red)'};font-weight:700;">${fmtMoney(p.netProfit)}</td>
+      <td><button class="del-btn" onclick="deletePlan(${p.id})" title="删除">×</button></td>
+    </tr>`;
+  }).join('');
+
+  // summary
+  const totalSpend = rows.reduce((s,r) => s + (r.spend||0), 0);
+  const totalGmv = rows.reduce((s,r) => s + (r.gmv||0), 0);
+  const totalProfit = rows.reduce((s,r) => s + r.netProfit, 0);
+  const totalRoi = totalSpend > 0 ? (totalGmv / totalSpend) : 0;
+  tfoot.innerHTML = `<tr class="summary-row">
+    <td>汇总</td>
+    <td>¥${fmtNum(totalSpend)}</td>
+    <td>¥${fmtNum(totalGmv)}</td>
+    <td></td><td></td>
+    <td>${totalRoi.toFixed(2)}</td>
+    <td></td>
+    <td style="color:${totalProfit>=0?'var(--green)':'var(--red)'};">${fmtMoney(totalProfit)}</td>
+    <td></td>
+  </tr>`;
+}
+
+// ═══════════════════════════════════════════
+//  TAB 3: 历史趋势
+// ═══════════════════════════════════════════
+let historyChart = null;
+let historyRange = 7;
+
+function renderHistory() {
+  if (!isPro) { updateProUI(); return; }
+  const records = getHistory();
+  const listEl = $('historyList');
+
+  if (records.length === 0) {
+    listEl.innerHTML = '<div class="empty-state">暂无记录<br>在「单计划」页计算后点击「💾 保存记录」</div>';
+    if (historyChart) { historyChart.destroy(); historyChart = null; }
+    return;
+  }
+
+  // list
+  const filtered = historyRange === 'all' ? records : records.slice(0, historyRange);
+  listEl.innerHTML = filtered.map((r,i) => {
+    const profitCls = r.netProfit >= 0 ? 'pos' : 'neg';
+    return `<div class="history-item">
+      <span class="hi-date">${r.date}</span>
+      <div class="hi-kpis">
+        <span>消耗 <b>¥${fmtNum(r.spend)}</b></span>
+        <span>GMV <b>¥${fmtNum(r.gmv)}</b></span>
+        <span>支付ROI <b>${r.payRoi.toFixed(2)}</b></span>
+        <span>结算ROI <b>${r.settleRoi.toFixed(2)}</b></span>
+        <span class="hi-profit ${profitCls}">${fmtMoney(r.netProfit)}</span>
+      </div>
+      <button class="hi-del" onclick="deleteHistoryRecord(${i})" title="删除">×</button>
+    </div>`;
+  }).join('');
+
+  // chart
+  drawHistoryChart(filtered.reverse()); // reverse for chronological order in chart
+}
+
+function deleteHistoryRecord(index) {
+  const records = getHistory();
+  records.splice(index, 1);
+  localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(records));
+  renderHistory();
+}
+
+function clearHistory() {
+  if (!confirm('确定清空全部历史记录？此操作不可恢复。')) return;
+  localStorage.removeItem(STORAGE_KEY_HISTORY);
+  renderHistory();
+}
+
+function drawHistoryChart(data) {
+  const ctx = $('historyChart').getContext('2d');
+  if (historyChart) historyChart.destroy();
+  if (data.length === 0) return;
+
+  historyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.date.slice(5)), // MM-DD
+      datasets: [
+        {
+          label: '消耗',
+          data: data.map(d => d.spend),
+          backgroundColor: 'rgba(239,68,68,0.35)',
+          borderColor: 'rgba(239,68,68,0.7)',
+          borderWidth: 1,
+          borderRadius: 4,
+          order: 2,
+        },
+        {
+          label: 'GMV',
+          data: data.map(d => d.gmv),
+          backgroundColor: 'rgba(59,130,246,0.35)',
+          borderColor: 'rgba(59,130,246,0.7)',
+          borderWidth: 1,
+          borderRadius: 4,
+          order: 2,
+        },
+        {
+          label: '结算ROI',
+          data: data.map(d => d.settleRoi),
+          type: 'line',
+          borderColor: '#10b981',
+          backgroundColor: 'transparent',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointBackgroundColor: '#10b981',
+          tension: 0.3,
+          yAxisID: 'y1',
+          order: 1,
+        },
+        {
+          label: '净利润',
+          data: data.map(d => d.netProfit),
+          type: 'line',
+          borderColor: '#f59e0b',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderDash: [4,3],
+          pointRadius: 3,
+          pointBackgroundColor: '#f59e0b',
+          tension: 0.3,
+          yAxisID: 'y1',
+          order: 1,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#8888a0', usePointStyle: true, pointStyleWidth: 8, padding: 16, font: { size: 11 } } },
+        tooltip: {
+          backgroundColor: '#14141f',
+          titleColor: '#e2e2ed',
+          bodyColor: '#8888a0',
+          borderColor: '#1e1e30',
+          borderWidth: 1,
+        },
+      },
+      scales: {
+        x: { ticks: { color: '#8888a0', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.03)' } },
+        y: {
+          position: 'left',
+          ticks: { color: '#8888a0', font: { size: 10 }, callback: v => '¥' + (v>=10000?(v/10000).toFixed(1)+'万':v) },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+        },
+        y1: {
+          position: 'right',
+          ticks: { color: '#8888a0', font: { size: 10 }, callback: v => (v>=10000?(v/10000).toFixed(1)+'万':v.toFixed(1)) },
+          grid: { display: false },
+        },
+      },
+    },
+  });
+}
+
+function exportCSV() {
+  const records = getHistory();
+  if (records.length === 0) { showToast('暂无数据可导出', true); return; }
+  const headers = ['日期','消耗','GMV','退款率(%)','毛利率(%)','支付ROI','结算ROI','净利润'];
+  const rows = records.map(r => [r.date, r.spend, r.gmv, r.refundRate, r.marginRate, r.payRoi.toFixed(2), r.settleRoi.toFixed(2), r.netProfit.toFixed(2)]);
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.download = '千川投放数据_' + new Date().toISOString().slice(0,10) + '.csv';
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  showToast('✅ CSV 已导出');
+}
+
+// history filter buttons
+document.querySelectorAll('.history-filters .filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.history-filters .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    historyRange = btn.dataset.range === 'all' ? 'all' : parseInt(btn.dataset.range);
+    renderHistory();
+  });
+});
+
+// ═══════════════════════════════════════════
+//  TAB 4: 出价建议
+// ═══════════════════════════════════════════
+const bidGmvInp = $('bidGmv'), bidRefundInp = $('bidRefund'), bidMarginInp = $('bidMargin'), bidTargetInp = $('bidTargetRoi');
+
+function calcBid() {
+  const gmv = parseFloat(bidGmvInp.value) || 0;
+  const refund = (parseFloat(bidRefundInp.value) || 0) / 100;
+  const margin = (parseFloat(bidMarginInp.value) || 0) / 100;
+  const targetRoi = parseFloat(bidTargetInp.value) || 0;
+
+  if (gmv <= 0 || margin <= 0 || targetRoi <= 0) {
+    $('suggestResult').style.display = 'none';
+    $('bidInsight').style.display = '';
+    return;
+  }
+
+  const settleGmv = gmv * (1 - refund);
+  const grossProfit = settleGmv * margin;
+  const breakevenRoi = (margin > 0 && refund < 1) ? 1 / (margin * (1 - refund)) : Infinity;
+
+  // Formula: maxSpend = grossProfit / targetRoi  =>  spend should result in settleRoi >= targetRoi
+  // settleRoi = settleGmv / spend >= targetRoi  =>  spend <= settleGmv / targetRoi
+  const maxSpendConservative = settleGmv / (targetRoi * 1.2); // 保守：目标ROI + 20%安全边际
+  const maxSpendNormal = settleGmv / targetRoi;
+  const maxSpendAggressive = settleGmv / (targetRoi * 0.85); // 激进：目标ROI 85折
+
+  const profitConservative = grossProfit - maxSpendConservative;
+  const profitNormal = grossProfit - maxSpendNormal;
+  const profitAggressive = grossProfit - maxSpendAggressive;
+
+  // output
+  $('suggestConservative').textContent = '¥' + fmtNum(maxSpendConservative) + '/天';
+  $('suggestNormal').textContent = '¥' + fmtNum(maxSpendNormal) + '/天';
+  $('suggestAggressive').textContent = '¥' + fmtNum(maxSpendAggressive) + '/天';
+  $('suggestBudget').textContent = '¥' + fmtNum(maxSpendNormal) + '/天（建议不超过）';
+  $('suggestProfit').textContent = '¥' + fmtNum(profitNormal) + '/天（预估）';
+
+  $('suggestResult').style.display = 'flex';
+  $('bidInsight').style.display = '';
+  $('bidInsight').className = 'insight ' + (profitNormal >= 0 ? 'success' : 'warning');
+  $('bidInsight').innerHTML = profitNormal >= 0
+    ? `<strong>✅ 该目标ROI可实现</strong><br>保本ROI为 <b>${breakevenRoi.toFixed(2)}</b>，目标ROI <b>${targetRoi.toFixed(2)}</b>高于保本线 ${((targetRoi/breakevenRoi-1)*100).toFixed(0)}%。<br>建议出价 <b>¥${fmtNum(maxSpendNormal)}/天</b>，预计日净利润 <b>¥${fmtNum(profitNormal)}</b>。`
+    : `<strong>⚠️ 目标ROI低于保本线</strong><br>保本ROI为 <b>${breakevenRoi.toFixed(2)}</b>，目标ROI <b>${targetRoi.toFixed(2)}</b> 会导致亏损。<br>建议：调高目标ROI至 ≥ ${breakevenRoi.toFixed(2)}，或降低成本/退款率。`;
+}
+
+[bidGmvInp, bidRefundInp, bidMarginInp, bidTargetInp].forEach(el => el.addEventListener('input', calcBid));
+
+// ═══════════════════════════════════════════
+//  EXPORT IMAGE (tab 1)
+// ═══════════════════════════════════════════
+async function exportImage() {
+  showToast('正在生成图片...');
+  try {
+    const canvas = await html2canvas(document.getElementById('panel-single'), { backgroundColor: '#0a0a0f', scale: 2, useCORS: true, logging: false });
+    const link = document.createElement('a');
+    link.download = '千川ROI计算_' + new Date().toISOString().slice(0,10) + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('✅ 图片已保存');
+  } catch(e) {
+    showToast('导出失败，请截图保存', true);
+  }
+}
+
+// ═══════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════
+function fmtMoney(v) {
+  const abs = Math.abs(v);
+  const s = abs >= 10000 ? (abs/10000).toFixed(1)+'万' : abs.toFixed(0);
+  return (v < 0 ? '-¥' : '¥') + s;
+}
+function fmtNum(v) { return Math.abs(v).toFixed(0); }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function showToast(msg, isError) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (isError ? 'error' : '') + ' show';
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+checkPro();
+calcSingle();
+calcBid();
+
+// close modal on overlay click
+$('licenseModal').addEventListener('click', function(e) { if (e.target === this) closeLicenseModal(); });
+
+// tab bar lock icons click → show license modal
+$('tabLockCompare').addEventListener('click', function(e) { e.stopPropagation(); showLicenseModal(); });
+$('tabLockHistory').addEventListener('click', function(e) { e.stopPropagation(); showLicenseModal(); });
+</script>
+</body>
+</html>
