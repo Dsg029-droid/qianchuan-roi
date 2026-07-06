@@ -363,7 +363,6 @@ body {
     <h3>🔑 激活 Pro 版本</h3>
     <p>包含：多计划对比 + 历史趋势 + CSV导出<br>购买后获得专属激活码，永久有效。</p>
     <p style="font-size:12px;color:var(--yellow);">💡 试用激活码：<b>QIANCHUAN2026</b></p>
-    <p style="font-size:11px;color:var(--text-secondary);">卖家后台：浏览器按 F12 → Console → 输入 <code style="background:var(--bg);padding:2px 6px;border-radius:4px;">generateKeys('QC-B006', 50)</code> 批量生成新码</p>
     <input class="modal-input" id="modalActivateInput" placeholder="请输入激活码" maxlength="20" autocomplete="off">
     <div class="modal-error" id="modalError">激活码无效，请检查后重试</div>
     <div style="display:flex;gap:8px;">
@@ -472,10 +471,6 @@ function showLicenseModal() {
     $('modalStatus').textContent = '✅ 已激活 Pro 版本（激活码: ' + usedKey + '）';
     $('modalActivateInput').style.display = 'none';
     document.querySelector('#licenseModal .btn-primary').style.display = 'none';
-    // 卖家后台入口
-    if (usedKey === 'QIANCHUAN2026' || usedKey.startsWith('ADMIN-')) {
-      $('modalStatus').textContent += '\n💡 卖家模式：可在Console调用 generateKeys() 批量生成激活码';
-    }
   } else {
     $('modalStatus').textContent = '';
     $('modalActivateInput').style.display = '';
