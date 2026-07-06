@@ -408,19 +408,17 @@ document.querySelectorAll('.tab-item').forEach(tab => {
 // ═══════════════════════════════════════════
 //  PRO LICENSE — 激活码管理
 //  ═══════════════════════════════════════════
-//  【卖家看这里】
-//  - ALL_KEYS 是所有有效激活码，一行一个
-//  - 添加新码：在数组里加一行 'QC-XXXX-XXXX'
-//  - 废除某个码：从那行删掉即可
-//  - 批量生成新码：用下方 generateKeys() 工具函数
-//  - 试用品/自己人用的通用码放在 TRIAL_KEYS 里
+//  TRIAL_KEYS：试用码池，激活后48小时有效
+//  PAID_KEYS： 付费码池，永久有效
 //  ═══════════════════════════════════════════
 
+const TRIAL_EXPIRY_HOURS = 48;
+
 const TRIAL_KEYS = [
-  'QIANCHUAN2026',       // 试用通用码
+  'QIANCHUAN2026',       // 试用通用码，48h有效
 ];
 
-// 正式售卖激活码池（一码一人，付款后发放）
+// 正式售卖激活码池（一码一人，付款后发放，永久有效）
 const PAID_KEYS = [
   'QC-B001-A7F3', 'QC-B001-B2G8', 'QC-B001-C9H1', 'QC-B001-D4J6', 'QC-B001-E8K2',
   'QC-B001-F3L9', 'QC-B001-G7M5', 'QC-B001-H1N4', 'QC-B001-J5P8', 'QC-B001-K9Q3',
@@ -437,8 +435,37 @@ const PAID_KEYS = [
 const ALL_KEYS = [...TRIAL_KEYS, ...PAID_KEYS];
 
 function checkPro() {
-  isPro = localStorage.getItem(STORAGE_KEY_ACTIVATED) === 'true';
+  isPro = checkProActive();
   updateProUI();
+}
+
+// 检查 Pro 是否激活且在有效期内
+function checkProActive() {
+  const raw = localStorage.getItem(STORAGE_KEY_ACTIVATED);
+  if (raw !== 'true') return false;
+
+  const usedKey = localStorage.getItem('qcroi_used_key') || '';
+
+  // 付费码 → 永久有效
+  if (PAID_KEYS.includes(usedKey)) return true;
+
+  // 试用码 → 检查48小时窗口
+  if (TRIAL_KEYS.includes(usedKey)) {
+    const activatedAt = localStorage.getItem('qcroi_activated_at');
+    if (!activatedAt) return false;
+    const elapsed = Date.now() - parseInt(activatedAt);
+    const limit = TRIAL_EXPIRY_HOURS * 3600 * 1000;
+    if (elapsed > limit) {
+      // 过期，清除激活状态
+      localStorage.removeItem(STORAGE_KEY_ACTIVATED);
+      localStorage.removeItem('qcroi_used_key');
+      localStorage.removeItem('qcroi_activated_at');
+      return false;
+    }
+    return true;
+  }
+
+  return false;
 }
 
 function updateProUI() {
@@ -470,7 +497,15 @@ function updateProUI() {
 function showLicenseModal() {
   if (isPro) {
     const usedKey = localStorage.getItem('qcroi_used_key') || '未知';
-    $('modalStatus').textContent = '✅ 已激活 Pro 版本（激活码: ' + usedKey + '）';
+    const activatedAt = localStorage.getItem('qcroi_activated_at');
+    let statusText = '✅ 已激活 Pro 版本';
+    if (TRIAL_KEYS.includes(usedKey) && activatedAt) {
+      const elapsed = Date.now() - parseInt(activatedAt);
+      const remaining = Math.max(0, TRIAL_EXPIRY_HOURS * 3600 * 1000 - elapsed);
+      const hoursLeft = Math.ceil(remaining / (3600 * 1000));
+      statusText = '✅ 试用中 · 剩余 ' + hoursLeft + ' 小时';
+    }
+    $('modalStatus').textContent = statusText;
     $('modalActivateInput').style.display = 'none';
     document.querySelector('#licenseModal .btn-primary').style.display = 'none';
   } else {
@@ -501,12 +536,12 @@ function doActivate(code) {
   if (ALL_KEYS.includes(code)) {
     localStorage.setItem(STORAGE_KEY_ACTIVATED, 'true');
     localStorage.setItem('qcroi_used_key', code);
-    // 更新已使用标记（用于卖家追踪哪个码已被激活）
+    localStorage.setItem('qcroi_activated_at', Date.now());
     markKeyUsed(code);
     checkPro();
     closeLicenseModal();
-    showToast('✅ Pro 已激活！享受全部功能');
-    // refresh pro panels
+    const isTrial = TRIAL_KEYS.includes(code);
+    showToast(isTrial ? '✅ 试用激活成功（48小时有效）' : '✅ Pro 已激活！永久有效');
     renderPlans();
     renderHistory();
     $('activateInputCompare').value = '';
