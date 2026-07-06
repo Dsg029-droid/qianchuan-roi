@@ -6,7 +6,7 @@
 - 历史趋势图表
 - 出价建议反推
 
-🔗 直接访问：[千川ROI计算器](https://qunana741-droid.github.io/qianchuan-roi/)
+🔗 直接访问：[千川ROI计算器](https://Dsg029-droid.github.io/qianchuan-roi/)
 
 ---
 
